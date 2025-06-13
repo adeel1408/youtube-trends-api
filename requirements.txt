@@ -1,0 +1,3 @@
+Flask
+pytrends
+Flask-Cors
