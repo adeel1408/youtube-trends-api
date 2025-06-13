@@ -8,10 +8,10 @@ import pandas as pd
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/api/youtube-interest')
-def youtube_trend():
+@app.route('/trends')
+def get_trends():
     keyword = request.args.get('keyword')
-    geo = request.args.get('geo', '')
+    geo = request.args.get('geo', '')  # Default to worldwide
     time = request.args.get('time', 'today 12-m')
 
     if not keyword:
@@ -19,18 +19,22 @@ def youtube_trend():
 
     try:
         pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload([keyword], timeframe=time, geo=geo, gprop='youtube')
+        pytrends.build_payload([keyword], cat=0, timeframe=time, geo=geo, gprop='youtube')
         df = pytrends.interest_over_time()
 
         if df.empty:
-            return jsonify({'message': 'No trend data found'}), 404
+            return jsonify({'trend_data': []})
 
         df = df.drop(columns=['isPartial'])
-        result = df.reset_index().rename(columns={keyword: 'value', 'date': 'time'})
-        return jsonify({'timeline': result.to_dict(orient='records')})
+        result = df.reset_index().to_dict(orient='records')
+        return jsonify({
+            'keyword': keyword,
+            'trend_data': result
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
