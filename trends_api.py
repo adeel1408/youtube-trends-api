@@ -1,3 +1,5 @@
+# === File: app.py (Flask Backend) ===
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pytrends.request import TrendReq
