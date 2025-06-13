@@ -9,31 +9,29 @@ CORS(app)
 @app.route('/')
 def get_trends():
     keyword = request.args.get('keyword')
-    geo = request.args.get('geo', '')  # Default to worldwide if not provided
-    time = request.args.get('time', 'today 12-m')  # Default to past 12 months
+    geo = request.args.get('geo', '')
+    time = request.args.get('time', 'today 12-m')
 
     if not keyword:
         return jsonify({'error': 'Keyword parameter is required.'}), 400
 
     try:
+        keywords = [kw.strip() for kw in keyword.split(',')]
         pytrends = TrendReq(hl='en-US', tz=360)
-        pytrends.build_payload([keyword], cat=0, timeframe=time, geo=geo, gprop='youtube')
+        pytrends.build_payload(keywords, cat=0, timeframe=time, geo=geo, gprop='youtube')
         data = pytrends.interest_over_time()
 
         if data.empty:
-            return jsonify({'message': f"No trend data found for keyword '{keyword}', region '{geo}', and time '{time}'."}), 404
+            return jsonify({'message': 'No trend data found.'}), 404
 
         data = data.drop(labels=['isPartial'], axis='columns')
 
-        # Format response
-        result = {
-            'keyword': keyword,
+        return jsonify({
+            'keywords': keywords,
             'geo': geo or 'Worldwide',
             'timeframe': time,
-            'trend_data': data.reset_index().to_dict(orient='records')
-        }
-
-        return jsonify(result)
+            'timeline': data.reset_index().to_dict(orient='records')
+        })
 
     except Exception as e:
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
