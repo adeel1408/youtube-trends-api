@@ -1,21 +1,28 @@
 from flask import Flask, request, jsonify
 from pytrends.request import TrendReq
 import os
+import random
 
 app = Flask(__name__)
 
-# Optional: Load proxy list from a file or environment
-PROXIES = [
-'http://45.234.100.102'
+# List of user-agent headers to rotate
+AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "Mozilla/5.0 (X11; Linux x86_64)",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64)",
+    "Mozilla/5.0 (Linux; Android 10)"
 ]
 
 def get_trends(keyword, geo, time_range):
     try:
-        # If proxies exist, pass them; else omit the parameter
-        if PROXIES:
-            pytrends = TrendReq(hl='en-US', tz=360, proxies={'https': PROXIES[0]})
-        else:
-            pytrends = TrendReq(hl='en-US', tz=360)
+        user_agent = random.choice(AGENTS)
+        pytrends = TrendReq(
+            hl='en-US',
+            tz=360,
+            requests_args={'headers': {'User-Agent': user_agent}}
+        )
 
         pytrends.build_payload([keyword], geo=geo, timeframe=time_range)
         data = pytrends.interest_over_time()
@@ -23,7 +30,7 @@ def get_trends(keyword, geo, time_range):
         if data.empty:
             return {"error": "No trend data found."}, 404
 
-        # Remove 'isPartial' column
+        # Clean data
         data = data.reset_index()[['date', keyword]]
         result = [{"date": row['date'].isoformat(), "value": row[keyword]} for _, row in data.iterrows()]
         return {"keyword": keyword, "data": result}
