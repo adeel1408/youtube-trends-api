@@ -11,32 +11,32 @@ CORS(app)
 def get_trends():
     keyword = request.args.get('keyword')
     geo = request.args.get('geo', '')  # Default to worldwide
-    timeframe = request.args.get('time', 'today 12-m')
+    time_range = request.args.get('time', 'today 12-m')
 
     if not keyword:
         return jsonify({'error': 'Keyword is required'}), 400
 
     try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        time.sleep(10)  # ⏱️ Delay of 10 seconds before request
+        time.sleep(1.5)  # Delay to prevent Google rate limit
 
-        pytrends.build_payload([keyword], cat=0, timeframe=timeframe, geo=geo, gprop='youtube')
+        pytrends = TrendReq(hl='en-US', tz=360)
+        pytrends.build_payload([keyword], cat=0, timeframe=time_range, geo=geo, gprop='youtube')
         df = pytrends.interest_over_time()
 
         if df.empty:
-            return jsonify({'trend_data': []})
+            return jsonify({'trend_data': [], 'message': 'No trend data found.'})
 
         df = df.drop(columns=['isPartial'])
         result = df.reset_index().to_dict(orient='records')
+
         return jsonify({
             'keyword': keyword,
             'trend_data': result
         })
 
-  except Exception as e:
-    print("Error:", e)  # Add this line
-    return jsonify({'error': str(e)}), 500
-
+    except Exception as e:
+        print("Error:", e)  # Visible in Render logs
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
