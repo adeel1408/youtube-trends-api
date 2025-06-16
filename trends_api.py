@@ -6,8 +6,7 @@ app = Flask(__name__)
 
 # Optional: Load proxy list from a file or environment
 PROXIES = [
-    # Add working proxies here if needed
-    # Example: "http://123.123.123.123:8080"
+'http://45.234.100.102'
 ]
 
 def get_trends(keyword, geo, time_range):
