@@ -1,14 +1,24 @@
-# === File: trends_api.py (Flask Backend) ===
+# === File: trends_api.py (Flask Backend with Rate Limiting) ===
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from pytrends.request import TrendReq
 import pandas as pd
 
 app = Flask(__name__)
 CORS(app)
 
+# Initialize rate limiter
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=["100 per day", "10 per minute"]  # Change as needed
+)
+
 @app.route('/trends')
+@limiter.limit("5 per minute; 100 per day")  # Per IP
 def get_trends():
     keyword = request.args.get('keyword')
     geo = request.args.get('geo', '')  # Default to worldwide
@@ -37,4 +47,4 @@ def get_trends():
 
 
 if __name__ == '__main__':
-app.run(debug=True)
+    app.run(debug=True)
