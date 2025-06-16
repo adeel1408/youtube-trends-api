@@ -1,54 +1,40 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from pytrends.request import TrendReq
-import os
-import random
+import pandas as pd
+import time
 
 app = Flask(__name__)
+CORS(app)
 
-# List of user-agent headers to rotate
-AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-    "Mozilla/5.0 (X11; Linux x86_64)",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64)",
-    "Mozilla/5.0 (Linux; Android 10)"
-]
-
-def get_trends(keyword, geo, time_range):
-    try:
-        user_agent = random.choice(AGENTS)
-        pytrends = TrendReq(
-            hl='en-US',
-            tz=360,
-            requests_args={'headers': {'User-Agent': user_agent}}
-        )
-
-        pytrends.build_payload([keyword], geo=geo, timeframe=time_range)
-        data = pytrends.interest_over_time()
-
-        if data.empty:
-            return {"error": "No trend data found."}, 404
-
-        # Clean data
-        data = data.reset_index()[['date', keyword]]
-        result = [{"date": row['date'].isoformat(), "value": row[keyword]} for _, row in data.iterrows()]
-        return {"keyword": keyword, "data": result}
-
-    except Exception as e:
-        return {"error": str(e)}, 500
-
-@app.route('/trends', methods=['GET'])
-def trends_endpoint():
+@app.route('/trends')
+def get_trends():
     keyword = request.args.get('keyword')
-    geo = request.args.get('geo', '')
-    time_range = request.args.get('time', 'today 3-m')
+    geo = request.args.get('geo', '')  # Default to worldwide
+    timeframe = request.args.get('time', 'today 12-m')
 
     if not keyword:
-        return jsonify({"error": "Missing keyword parameter"}), 400
+        return jsonify({'error': 'Keyword is required'}), 400
 
-    return jsonify(get_trends(keyword, geo, time_range))
+    try:
+        pytrends = TrendReq(hl='en-US', tz=360)
+        time.sleep(5)  # ⏱️ Delay of 10 seconds before request
+
+        pytrends.build_payload([keyword], cat=0, timeframe=timeframe, geo=geo, gprop='youtube')
+        df = pytrends.interest_over_time()
+
+        if df.empty:
+            return jsonify({'trend_data': []})
+
+        df = df.drop(columns=['isPartial'])
+        result = df.reset_index().to_dict(orient='records')
+        return jsonify({
+            'keyword': keyword,
+            'trend_data': result
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(debug=True)
